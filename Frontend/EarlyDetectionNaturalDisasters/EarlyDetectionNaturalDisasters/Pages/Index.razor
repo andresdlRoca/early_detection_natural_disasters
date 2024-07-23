@@ -1,0 +1,161 @@
+﻿@page "/"
+@using System.Text.Json
+@using Syncfusion.Blazor.Navigations
+@inject HttpClient Http
+
+<h3>Flood and Storm Predictions</h3>
+
+<SfTab @bind-SelectedItem="SelectedTab" OverflowMode="OverflowMode.Scrollable" CssClass="e-tab-custom-class">
+    <TabItems>
+        <TabItem>
+            <ChildContent>
+                <TabHeader Text="Floods" IconCss="e-icons e-description"> </TabHeader>
+            </ChildContent>
+            <ContentTemplate>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Year</th>
+                            <th>Forecast</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < floodsForecast.Count; i++)
+                        {
+                            <tr>
+                                <td>@(2025 + i)</td>
+                                <td>@floodsForecast[i]</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </ContentTemplate>
+        </TabItem>
+
+        <TabItem>
+            <ChildContent>
+                <TabHeader Text="Storms" IconCss="e-icons e-list-unordered"></TabHeader>
+            </ChildContent>
+            <ContentTemplate>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Year</th>
+                            <th>Forecast</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < stormsForecast.Count; i++)
+                        {
+                            <tr>
+                                <td>@(2025 + i)</td>
+                                <td>@stormsForecast[i]</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </ContentTemplate>
+        </TabItem>
+    </TabItems>
+</SfTab>
+
+<style>
+    .e-grid td.e-selectionbackground.e-active {
+        background-color: yellow;
+    }
+
+    .e-tab .e-tab-header {
+        background: #E7F0FF !important;
+        border-radius: 5px;
+    }
+
+        .e-tab .e-tab-header .e-toolbar-item.e-active {
+            background: #DC143C;
+            color: white;
+        }
+
+            .e-tab .e-tab-header .e-toolbar-item.e-active .e-tab-wrap:hover {
+                background: #DC143C;
+            }
+
+    .e-tab .e-content .e-item {
+        border-radius: 5px;
+        border-top: 3px solid #DC143C;
+    }
+
+    .table {
+        width: 100%;
+        margin-bottom: 1rem;
+        color: #212529;
+        border-collapse: collapse;
+    }
+
+        .table th,
+        .table td {
+            padding: 0.75rem;
+            vertical-align: top;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .table thead th {
+            vertical-align: bottom;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .table tbody + tbody {
+            border-top: 2px solid #dee2e6;
+        }
+
+        .table .table {
+            background-color: #fff;
+        }
+
+    .table-striped tbody tr:nth-of-type(odd) {
+        background-color: rgba(0, 0, 0, 0.05);
+    }
+</style>
+
+@code {
+    private int SelectedTab = 0;
+    private string predictionResult;
+    private List<double> floodsForecast = new List<double>();
+    private List<double> stormsForecast = new List<double>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await Http.GetAsync("http://127.0.0.1:5000/forecast");
+        if (response.IsSuccessStatusCode)
+        {
+            var jsonResponse = await response.Content.ReadAsStringAsync();
+            predictionResult = jsonResponse; // Keep the JSON response
+
+            // Deserialize the JSON response
+            try
+            {
+                var forecasts = System.Text.Json.JsonSerializer.Deserialize<ForecastResponse>(jsonResponse, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                if (forecasts != null)
+                {
+                    // Remove the first three values
+                    floodsForecast = forecasts.FloodsForecast.Skip(3).ToList();
+                    stormsForecast = forecasts.StormsForecast.Skip(3).ToList();
+                }
+
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Deserialization failed: {ex.Message}");
+            }
+        }
+    }
+
+    private class ForecastResponse
+    {
+        public List<double> FloodsForecast { get; set; }
+        public List<double> StormsForecast { get; set; }
+    }
+}

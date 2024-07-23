@@ -1,0 +1,128 @@
+﻿@page "/charts"
+@using System.Text.Json
+@using Syncfusion.Blazor.Charts
+@using Syncfusion.Blazor.Layouts
+@inject HttpClient Http
+
+<h3>Flood and Storm Charts</h3>
+<Syncfusion.Blazor.Buttons.SfButton CssClass="e-primary" OnClick="LoadData">Load Data</Syncfusion.Blazor.Buttons.SfButton>
+<div class="container">
+    <div class="chart-container">
+        <SfChart Title="Floods Forecast">
+            <ChartSeriesCollection>
+                <ChartSeries DataSource="@floodsChartData" XName="Year" YName="Value" Type="ChartSeriesType.Line">
+                </ChartSeries>
+            </ChartSeriesCollection>
+            <ChartPrimaryXAxis Title="Year"></ChartPrimaryXAxis>
+            <ChartPrimaryYAxis Title="Number of Floods"></ChartPrimaryYAxis>
+        </SfChart>
+    </div>
+    <div class="chart-container">
+        <SfChart Title="Storms Forecast">
+            <ChartSeriesCollection>
+                <ChartSeries DataSource="@stormsChartData" XName="Year" YName="Value" Type="ChartSeriesType.Line">
+                </ChartSeries>
+            </ChartSeriesCollection>
+            <ChartPrimaryXAxis Title="Year"></ChartPrimaryXAxis>
+            <ChartPrimaryYAxis Title="Number of Storms"></ChartPrimaryYAxis>
+        </SfChart>
+    </div>
+</div>
+
+<style>
+    .container {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .chart-container {
+        width: 48%;
+    }
+
+    .e-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+        color: #fff;
+    }
+
+        .e-primary:hover {
+            background-color: #0056b3;
+            border-color: #004085;
+        }
+
+    .e-panel-header {
+        background-color: rgba(0, 0, 0, .1);
+        text-align: center;
+    }
+
+    .e-panel-content {
+        text-align: center;
+        margin-top: 10px;
+    }
+</style>
+
+@code {
+    private string predictionResult;
+    private List<double> floodsForecast = new List<double>();
+    private List<double> stormsForecast = new List<double>();
+    private List<ChartData> floodsChartData = new List<ChartData>();
+    private List<ChartData> stormsChartData = new List<ChartData>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await Http.GetAsync("http://127.0.0.1:5000/forecast");
+        if (response.IsSuccessStatusCode)
+        {
+            var jsonResponse = await response.Content.ReadAsStringAsync();
+            predictionResult = jsonResponse; // Keep the JSON response
+
+            // Deserialize the JSON response
+            try
+            {
+                var forecasts = System.Text.Json.JsonSerializer.Deserialize<ForecastResponse>(jsonResponse, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                if (forecasts != null)
+                {
+                    // Remove the first three values
+                    floodsForecast = forecasts.FloodsForecast.Skip(3).ToList();
+                    stormsForecast = forecasts.StormsForecast.Skip(3).ToList();
+
+                    // Prepare chart data
+                    floodsChartData = floodsForecast.Select((value, index) => new ChartData { Year = 2025 + index, Value = value }).ToList();
+                    stormsChartData = stormsForecast.Select((value, index) => new ChartData { Year = 2025 + index, Value = value }).ToList();
+
+                    // Debugging: Print out the data to verify
+                    Console.WriteLine("FloodsChartData: " + string.Join(", ", floodsChartData.Select(d => $"{d.Year}: {d.Value}")));
+                    Console.WriteLine("StormsChartData: " + string.Join(", ", stormsChartData.Select(d => $"{d.Year}: {d.Value}")));
+                }
+
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Deserialization failed: {ex.Message}");
+            }
+        }
+    }
+
+    public void LoadData()
+    {
+        StateHasChanged();
+    }
+
+    private class ForecastResponse
+    {
+        public List<double> FloodsForecast { get; set; }
+        public List<double> StormsForecast { get; set; }
+    }
+
+    public class ChartData
+    {
+        public int Year { get; set; }
+        public double Value { get; set; }
+    }
+}
